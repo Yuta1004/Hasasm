@@ -67,63 +67,38 @@ true = state $ \(pc, _, pmem, dmem) -> (pure (), (pc+1, 1, pmem, dmem))
 false :: MState
 false = state $ \(pc, _, pmem, dmem) -> (pure (), (pc+1, 0, pmem, dmem))
 
-jmp :: [String] -> MState
-jmp as = state $ \(pc, tmp, pmem, dmem) ->
-    case parse as of
-        Left _ -> (pure (), (pc+1, tmp, pmem, dmem))
-        Right e -> let v = eval e
-                    in (pure (), (pc+v, tmp, pmem, dmem))
-
-jmpt :: [String] -> MState
-jmpt as = state $ \(pc, tmp, pmem, dmem) ->
-    case parse as of
-        Left _ -> (pure (), (pc+1, tmp, pmem, dmem))
-        Right e ->
-            case (tmp, eval e) of
-                (0, _) -> (pure (), (pc+1, tmp, pmem, dmem))
-                (_, d) -> (pure (), (pc+d, tmp, pmem, dmem))
-
-jmpf :: [String] -> MState
-jmpf as = state $ \(pc, tmp, pmem, dmem) ->
-    case parse as of
-        Left _ -> (pure (), (pc+1, tmp, pmem, dmem))
-        Right e ->
-            case (tmp, eval e) of
-                (0, d) -> (pure (), (pc+d, tmp, pmem, dmem))
-                (_, _) -> (pure (), (pc+1, tmp, pmem, dmem))
-
-use :: [String] -> MState
-use as = state $ \(pc, tmp, pmem, dmem) -> do
-    let aas = map (\e -> if e == "@" then (show tmp); else e) as
-    case parse aas of
-        Left _ -> (pure (), (pc+1, 0, pmem, dmem))
-        Right e -> let tmp' = memr dmem (eval e) 0
-                    in (pure (), (pc+1, tmp', pmem, dmem))
-
-set :: [String] -> MState
-set as = state $ \(pc, tmp, pmem, dmem) -> do
-    let (ns, vst) = split_args as
-    let vs = map (\e -> if e == "@" then (show tmp); else e) vst
-    case (parse ns, parse vs) of
-        (Left _, _) -> (pure (), (pc+1, tmp, pmem, dmem))
-        (_, Left _) -> (pure (), (pc+1, tmp, pmem, dmem))
-        (Right ne, Right ve) -> let dmem' = memw dmem (eval ne) (eval ve)
-                                 in (pure (), (pc+1, tmp, pmem, dmem'))
+jmp :: [Int] -> MState
+jmp args = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+d, tmp, pmem, dmem))
     where
-        split_args = (\(as, bst) -> (as, tail bst)) . break (== ".")
+        d = args !! 0
 
-add :: [String] -> MState
-add as = state $ \(pc, tmp, pmem, dmem) -> do
-    let (ns, vst) = split_args as
-    let vs = map (\e -> if e == "@" then (show tmp); else e) vst
-    case (parse ns, parse vs) of
-        (Left _, _) -> (pure (), (pc+1, tmp, pmem, dmem))
-        (_, Left _) -> (pure (), (pc+1, tmp, pmem, dmem))
-        (Right ne, Right ve) -> let e = (memr dmem (eval ne) 0) + (eval ve)
-                                    dmem' = memw dmem (eval ne) e
-                                 in (pure (), (pc+1, tmp, pmem, dmem'))
-    where
-        split_args = (\(as, bst) -> (as, tail bst)) . break (== ".")
+jmpt :: [Int] -> MState
+jmpt args = state $ \(pc, tmp, pmem, dmem) ->
+    case (tmp, args !! 0) of
+        (0, _) -> (pure (), (pc+1, tmp, pmem, dmem))
+        (_, d) -> (pure (), (pc+d, tmp, pmem, dmem))
+
+jmpf :: [Int] -> MState
+jmpf args = state $ \(pc, tmp, pmem, dmem) ->
+    case (tmp, args !! 0) of
+        (0, d) -> (pure (), (pc+d, tmp, pmem, dmem))
+        (_, _) -> (pure (), (pc+1, tmp, pmem, dmem))
+
+use :: [Int] -> MState
+use args = state $ \(pc, tmp, pmem, dmem) ->
+    let tmp' = memr dmem (args !! 0) 0
+    in (pure (), (pc+1, tmp', pmem, dmem))
+
+set :: [Int] -> MState
+set args = state $ \(pc, tmp, pmem, dmem) ->
+    let dmem' = memw dmem (args !! 0) (args !! 1)
+    in (pure (), (pc+1, tmp, pmem, dmem'))
+
+add :: [Int] -> MState
+add args = state $ \(pc, tmp, pmem, dmem) ->
+    let e = (memr dmem (args !! 0) 0) + (args !! 1)
+        dmem' = memw dmem (args !! 0) e
+    in (pure (), (pc+1, tmp, pmem, dmem'))
 
 nop :: MState
 nop = state $ \(pc, tmp, pmem, gmem) -> (pure (), (pc+1, tmp, pmem, gmem))
@@ -132,20 +107,33 @@ mprintRaw :: MState
 mprintRaw = state $ \(pc, tmp, pmem, gmem) -> (putStr $ show tmp, (pc+1, tmp, pmem, gmem))
 
 mprintChar :: MState
-mprintChar = state $ \(pc, tmp, pmem, gmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, gmem)) 
+mprintChar = state $ \(pc, tmp, pmem, gmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, gmem))
+
+readArgs :: [String] -> Int -> [Int]
+readArgs [] _ = []
+readArgs args v =
+    case break (== ".") args of
+        (hs, []) -> [ss2i hs]
+        (hs, ts) -> [ss2i hs] ++ (readArgs (tail ts) v)
+    where
+        ss2i ss = case parse $ map (\e -> if e == "@" then (show v); else e) ss of
+            Left _ -> 0
+            Right e -> eval e
 
 exec :: [String] -> MState
 exec [] = nop
-exec (c:as) =
+exec (c:args) = do
+    (_, tmp, _, _) <- get
+    let argsi = readArgs args tmp
     case c of
         "$true" -> true
         "$false" -> false
-        "$jmp" -> jmp as
-        "$jmpt" -> jmpt as
-        "$jmpf" -> jmpf as
-        "$use" -> use as
-        "$set" -> set as
-        "$add" -> add as
+        "$jmp" -> jmp argsi
+        "$jmpt" -> jmpt argsi
+        "$jmpf" -> jmpf argsi
+        "$use" -> use argsi
+        "$set" -> set argsi
+        "$add" -> add argsi
         "$printr" -> mprintRaw
         "$printc" -> mprintChar
         _ -> nop
