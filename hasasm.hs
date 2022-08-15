@@ -56,73 +56,68 @@ split es os =
                         in Right (o, l, r)
 
 {-- Command --}
-type MState = State (Int, Int, Int, Int) ()
+type MState = State (Int, Int, [String], [Int]) ()
 
 true :: MState
-true = state $ \(pc, _, r0, r1) -> ((), (pc+1, 1, r0, r1))
+true = state $ \(pc, _, pmem, gmem) -> ((), (pc+1, 1, pmem, gmem))
 
 false :: MState
-false = state $ \(pc, _, r0, r1) -> ((), (pc+1, 0, r0, r1))
+false = state $ \(pc, _, pmem, gmem) -> ((), (pc+1, 0, pmem, gmem))
 
 jmp :: [String] -> MState
-jmp as = state $ \(pc, tmp, r0, r1) ->
+jmp as = state $ \(pc, tmp, pmem, gmem) ->
     case parse as of
-        Left _ -> ((), (pc+1, tmp, r0, r1))
+        Left _ -> ((), (pc+1, tmp, pmem, gmem))
         Right e -> let v = eval e
-                    in ((), (pc+v, tmp, r0, r1))
+                    in ((), (pc+v, tmp, pmem, gmem))
 
 jmpt :: [String] -> MState
-jmpt as = state $ \(pc, tmp, r0, r1) ->
+jmpt as = state $ \(pc, tmp, pmem, gmem) ->
     case parse as of
-        Left _ -> ((), (pc+1, tmp, r0, r1))
+        Left _ -> ((), (pc+1, tmp, pmem, gmem))
         Right e ->
             case (tmp, eval e) of
-                (0, _) -> ((), (pc+1, tmp, r0, r1))
-                (_, d) -> ((), (pc+d, tmp, r0, r1))
+                (0, _) -> ((), (pc+1, tmp, pmem, gmem))
+                (_, d) -> ((), (pc+d, tmp, pmem, gmem))
 
 jmpf :: [String] -> MState
-jmpf as = state $ \(pc, tmp, r0, r1) ->
+jmpf as = state $ \(pc, tmp, pmem, gmem) ->
     case parse as of
-        Left _ -> ((), (pc+1, tmp, r0, r1))
+        Left _ -> ((), (pc+1, tmp, pmem, gmem))
         Right e ->
             case (tmp, eval e) of
-                (0, d) -> ((), (pc+d, tmp, r0, r1))
-                (_, _) -> ((), (pc+1, tmp, r0, r1))
+                (0, d) -> ((), (pc+d, tmp, pmem, gmem))
+                (_, _) -> ((), (pc+1, tmp, pmem, gmem))
 
 use :: [String] -> MState
-use as = state $ \(pc, tmp, r0, r1) ->
+use as = state $ \(pc, tmp, pmem, gmem) ->
     case parse as of
-        Left _ -> ((), (pc+1, 0, r0, r1))
-        Right e ->
-            case eval e of
-                0 -> ((), (pc+1, r0, r0, r1))
-                1 -> ((), (pc+1, r1, r0, r1))
+        Left _ -> ((), (pc+1, 0, pmem, gmem))
+        Right e -> let tmp' = memr gmem (eval e) 0
+                    in ((), (pc+1, tmp', pmem, gmem))
 
 set :: [String] -> MState
-set as = state $ \(pc, tmp, r0, r1) -> do
+set as = state $ \(pc, tmp, pmem, gmem) -> do
     let (ns, vst) = split_args as
     let vs = map (\e -> if e == "@" then (show tmp); else e) vst
     case (parse ns, parse vs) of
-        (Left _, _) -> ((), (pc+1, tmp, r0, r1))
-        (_, Left _) -> ((), (pc+1, tmp, r0, r1))
-        (Right ne, Right ve) ->
-            case (eval ne, eval ve) of
-                (0, v) -> ((), (pc+1, tmp, v, r1))
-                (1, v) -> ((), (pc+1, tmp, r0, v))
+        (Left _, _) -> ((), (pc+1, tmp, pmem, gmem))
+        (_, Left _) -> ((), (pc+1, tmp, pmem, gmem))
+        (Right ne, Right ve) -> let gmem' = memw gmem (eval ne) (eval ve)
+                                 in ((), (pc+1, tmp, pmem, gmem'))
     where
         split_args = (\(as, bst) -> (as, tail bst)) . break (== ".")
 
 add :: [String] -> MState
-add as = state $ \(pc, tmp, r0, r1) -> do
+add as = state $ \(pc, tmp, pmem, gmem) -> do
     let (ns, vst) = split_args as
     let vs = map (\e -> if e == "@" then (show tmp); else e) vst
     case (parse ns, parse vs) of
-        (Left _, _) -> ((), (pc+1, tmp, r0, r1))
-        (_, Left _) -> ((), (pc+1, tmp, r0, r1))
-        (Right ne, Right ve) ->
-            case (eval ne, eval ve) of
-                (0, v) -> ((), (pc+1, tmp, r0+v, r1))
-                (1, v) -> ((), (pc+1, tmp, r0, r1+v))
+        (Left _, _) -> ((), (pc+1, tmp, pmem, gmem))
+        (_, Left _) -> ((), (pc+1, tmp, pmem, gmem))
+        (Right ne, Right ve) -> let e = (memr gmem (eval ne) 0) + (eval ve)
+                                    gmem' = memw gmem (eval ne) e
+                                 in ((), (pc+1, tmp, pmem, gmem'))
     where
         split_args = (\(as, bst) -> (as, tail bst)) . break (== ".")
 
@@ -140,11 +135,11 @@ exec (c:as) =
 
 interpreter :: MState
 interpreter = do
-    (pc, tmp, r0, r1) <- get
-    case program pc of
+    (pc, _, pmem, _) <- get
+    case memr0 pmem pc of
         Left _ -> return ()
         Right stmt -> do
-            exec stmt
+            exec $ words stmt
             interpreter
 
 memr0 :: [a] -> Int -> Either () a
@@ -170,14 +165,11 @@ memw m n e =
         Left _ -> m
         Right m' -> m'
 
-program :: Int -> Either () [String]
-program n | n < length program = Right $ program !! n
-          | otherwise = Left ()
-    where
-        program = map words ["$set 0 . 10", "$set 1 . 0", "$use 0", "$jmpf 5", "$use 0", "$add 1 . @ * 10", "$add 0 . -1", "$jmp -5", "$use 1", "$set 1 . @ / 10"]
-
 main :: IO ()
-main = print $ runState interpreter (0, 0, 0, 0)
+main = print $ runState interpreter (0, 0, pmem, gmem)
+    where
+        pmem = ["$set 0 . 10", "$set 1 . 0", "$use 0", "$jmpf 5", "$use 0", "$add 1 . @ * 10", "$add 0 . -1", "$jmp -5", "$use 1", "$set 1 . @ / 10"]
+        gmem = replicate 10 0
 
 {--
 
