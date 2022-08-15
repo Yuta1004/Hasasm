@@ -97,6 +97,9 @@ set args = state $ \(pc, tmp, pmem, dmem) ->
     let dmem' = memw dmem (args !! 0) (args !! 1)
     in (pure (), (pc+1, tmp, pmem, dmem'))
 
+sett :: [Int] -> MState
+sett args = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+1, args !! 0, pmem, dmem))
+
 add :: [Int] -> MState
 add args = state $ \(pc, tmp, pmem, dmem) ->
     let e = (memr dmem (args !! 0) 0) + (args !! 1)
@@ -133,6 +136,7 @@ exec (c:args) = do
         "$jmpf" -> jmpf argsi
         "$use" -> use argsi
         "$set" -> set argsi
+        "$sett" -> sett argsi
         "$add" -> add argsi
         "$printr" -> mprintRaw
         "$printc" -> mprintChar
