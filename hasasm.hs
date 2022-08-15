@@ -56,8 +56,8 @@ split es os =
                             r = reverse rrev
                         in Right (o, l, r)
 
-{-- Command --}
-type Inner = (Int, Int, [String], [Int])
+{-- Interpreter --}
+type Inner = (Int, Int, [String], [Int])    -- PC, TMP, Memory(Program), Memory(Data)
 type MState = State Inner ()
 
 true :: MState
@@ -149,6 +149,7 @@ interpreter = do
             exec $ words stmt
             interpreter
 
+{-- Memory --}
 memr0 :: [a] -> Int -> Either () a
 memr0 m n | n < length m = Right $ m !! n
           | otherwise = Left ()
@@ -175,11 +176,11 @@ memw m n e =
 out :: Inner -> IO ()
 out i = do
     let (pc, tmp, pmem, dmem) = i
-    putStrLn $ "--- Register ---"
-    putStrLn $ "\tProgram Counter: " ++ (show pc)
-    putStrLn $ "\tTemporary: " ++ (show tmp)
-    putStrLn $ "--- Memory ---"
-    putStrLn $ "\tData: " ++ (show dmem)
+    putStrLn $ "Register"
+    putStrLn $ "  * Program Counter: " ++ (show pc)
+    putStrLn $ "  * Temporary: " ++ (show tmp)
+    putStrLn $ "Memory"
+    putStrLn $ "  * Data: " ++ (show dmem)
 
 main :: IO ()
 main = do
