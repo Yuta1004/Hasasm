@@ -147,16 +147,28 @@ interpreter = do
             exec stmt
             interpreter
 
-memr :: [a] -> Int -> a -> a
-memr m n d | n < length m = m !! n
-           | otherwise = d
+memr0 :: [a] -> Int -> Either () a
+memr0 m n | n < length m = Right $ m !! n
+          | otherwise = Left ()
 
-memw :: [a] -> Int -> a -> [a]
-memw m n e | n < length m =  hs ++ [e] ++ ts
-           | otherwise = m
+memr :: [a] -> Int -> a -> a
+memr m n d =
+    case memr0 m n of
+        Left _ -> d
+        Right e -> e
+
+memw0 :: [a] -> Int -> a -> Either () [a]
+memw0 m n e | n < length m = Right $ hs ++ [e] ++ ts
+            | otherwise = Left ()
     where
         (hs, tts) = splitAt n m
         ts = tail tts
+
+memw :: [a] -> Int -> a -> [a]
+memw m n e =
+    case memw0 m n e of
+        Left _ -> m
+        Right m' -> m'
 
 program :: Int -> Either () [String]
 program n | n < length program = Right $ program !! n
