@@ -1,23 +1,29 @@
-$set    2 . 104
-$set    3 . 101
+# HelloWorldを出力する
+
+## 初期化
+### 0 : ループカウンタ
+### 1 ~ 13 : 文字列 "hello world!"
+$set    0 . 1
+$set    1 . 104
+$set    2 . 101
+$set    3 . 108
 $set    4 . 108
-$set    5 . 108
-$set    6 . 111
-$set    7 . 32
-$set    8 . 119
-$set    9 . 111
-$set    10 . 114
-$set    11 . 108
-$set    12 . 100
-$set    13 . 33
-$set    14 . 10
-$set    0 . 2
-$set    1 . 13
-$use    1
-$jmpf   7
+$set    5 . 111
+$set    6 . 32
+$set    7 . 119
+$set    8 . 111
+$set    9 . 114
+$set    10 . 108
+$set    11 . 100
+$set    12 . 33
+$set    13 . 10
+
+## 出力
+$use    0
+$sett   @ - 14
+$jmpf   6
 $use    0
 $use    @
 $printc
 $add    0 . 1
-$add    1 . -1
 $jmp    -7
