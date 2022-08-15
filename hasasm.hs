@@ -1,3 +1,4 @@
+import System.Environment(getArgs)
 import Control.Monad.State
 
 {-- Expr --}
@@ -166,11 +167,24 @@ memw m n e =
         Left _ -> m
         Right m' -> m'
 
+out :: Inner -> IO ()
+out i = do
+    let (pc, tmp, pmem, dmem) = i
+    putStrLn $ "--- Register ---"
+    putStrLn $ "\tProgram Counter: " ++ (show pc)
+    putStrLn $ "\tTemporary: " ++ (show tmp)
+    putStrLn $ "--- Memory ---"
+    putStrLn $ "\tProgram: " ++ (show pmem)
+    putStrLn $ "\tData: " ++ (show dmem)
+
 main :: IO ()
-main = print $ runState interpreter (0, 0, pmem, gmem)
-    where
-        pmem = ["$set 0 . 10", "$set 1 . 0", "$use 0", "$jmpf 5", "$use 0", "$add 1 . @ * 10", "$add 0 . -1", "$jmp -5", "$use 1", "$set 1 . @ / 10"]
-        gmem = replicate 10 0
+main = do
+    args <- getArgs
+    case length args of
+        1 -> do
+            f <- readFile $ args !! 0
+            out $ execState interpreter (0, 0, lines f, replicate 10 0)
+        _ -> putStrLn $ "Usage: ./hasasm filepath"
 
 {--
 
