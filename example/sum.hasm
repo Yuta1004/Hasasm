@@ -18,3 +18,5 @@ $jmp    -6
 ## 出力
 $use    1
 $printr
+$sett   10
+$printc
