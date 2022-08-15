@@ -127,6 +127,7 @@ nop :: MState
 nop = state $ \(pc, tmp, pmem, gmem) -> ((), (pc+1, tmp, pmem, gmem))
 
 exec :: [String] -> MState
+exec [] = nop
 exec (c:as) =
     case c of
         "$true" -> true
