@@ -1,0 +1,23 @@
+$set    2 . 104
+$set    3 . 101
+$set    4 . 108
+$set    5 . 108
+$set    6 . 111
+$set    7 . 32
+$set    8 . 119
+$set    9 . 111
+$set    10 . 114
+$set    11 . 108
+$set    12 . 100
+$set    13 . 33
+$set    14 . 10
+$set    0 . 2
+$set    1 . 13
+$use    1
+$jmpf   7
+$use    0
+$use    @
+$print
+$add    0 . 1
+$add    1 . -1
+$jmp    -7

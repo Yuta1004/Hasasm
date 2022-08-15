@@ -1,3 +1,4 @@
+import Data.Char
 import System.Environment(getArgs)
 import Control.Monad.State
 
@@ -58,55 +59,56 @@ split es os =
 
 {-- Interpreter --}
 type Inner = (Int, Int, [String], [Int])    -- PC, TMP, Memory(Program), Memory(Data)
-type MState = State Inner ()
+type MState = State Inner (IO ())
 
 true :: MState
-true = state $ \(pc, _, pmem, dmem) -> ((), (pc+1, 1, pmem, dmem))
+true = state $ \(pc, _, pmem, dmem) -> (pure (), (pc+1, 1, pmem, dmem))
 
 false :: MState
-false = state $ \(pc, _, pmem, dmem) -> ((), (pc+1, 0, pmem, dmem))
+false = state $ \(pc, _, pmem, dmem) -> (pure (), (pc+1, 0, pmem, dmem))
 
 jmp :: [String] -> MState
 jmp as = state $ \(pc, tmp, pmem, dmem) ->
     case parse as of
-        Left _ -> ((), (pc+1, tmp, pmem, dmem))
+        Left _ -> (pure (), (pc+1, tmp, pmem, dmem))
         Right e -> let v = eval e
-                    in ((), (pc+v, tmp, pmem, dmem))
+                    in (pure (), (pc+v, tmp, pmem, dmem))
 
 jmpt :: [String] -> MState
 jmpt as = state $ \(pc, tmp, pmem, dmem) ->
     case parse as of
-        Left _ -> ((), (pc+1, tmp, pmem, dmem))
+        Left _ -> (pure (), (pc+1, tmp, pmem, dmem))
         Right e ->
             case (tmp, eval e) of
-                (0, _) -> ((), (pc+1, tmp, pmem, dmem))
-                (_, d) -> ((), (pc+d, tmp, pmem, dmem))
+                (0, _) -> (pure (), (pc+1, tmp, pmem, dmem))
+                (_, d) -> (pure (), (pc+d, tmp, pmem, dmem))
 
 jmpf :: [String] -> MState
 jmpf as = state $ \(pc, tmp, pmem, dmem) ->
     case parse as of
-        Left _ -> ((), (pc+1, tmp, pmem, dmem))
+        Left _ -> (pure (), (pc+1, tmp, pmem, dmem))
         Right e ->
             case (tmp, eval e) of
-                (0, d) -> ((), (pc+d, tmp, pmem, dmem))
-                (_, _) -> ((), (pc+1, tmp, pmem, dmem))
+                (0, d) -> (pure (), (pc+d, tmp, pmem, dmem))
+                (_, _) -> (pure (), (pc+1, tmp, pmem, dmem))
 
 use :: [String] -> MState
-use as = state $ \(pc, tmp, pmem, dmem) ->
-    case parse as of
-        Left _ -> ((), (pc+1, 0, pmem, dmem))
+use as = state $ \(pc, tmp, pmem, dmem) -> do
+    let aas = map (\e -> if e == "@" then (show tmp); else e) as
+    case parse aas of
+        Left _ -> (pure (), (pc+1, 0, pmem, dmem))
         Right e -> let tmp' = memr dmem (eval e) 0
-                    in ((), (pc+1, tmp', pmem, dmem))
+                    in (pure (), (pc+1, tmp', pmem, dmem))
 
 set :: [String] -> MState
 set as = state $ \(pc, tmp, pmem, dmem) -> do
     let (ns, vst) = split_args as
     let vs = map (\e -> if e == "@" then (show tmp); else e) vst
     case (parse ns, parse vs) of
-        (Left _, _) -> ((), (pc+1, tmp, pmem, dmem))
-        (_, Left _) -> ((), (pc+1, tmp, pmem, dmem))
+        (Left _, _) -> (pure (), (pc+1, tmp, pmem, dmem))
+        (_, Left _) -> (pure (), (pc+1, tmp, pmem, dmem))
         (Right ne, Right ve) -> let dmem' = memw dmem (eval ne) (eval ve)
-                                 in ((), (pc+1, tmp, pmem, dmem'))
+                                 in (pure (), (pc+1, tmp, pmem, dmem'))
     where
         split_args = (\(as, bst) -> (as, tail bst)) . break (== ".")
 
@@ -115,16 +117,19 @@ add as = state $ \(pc, tmp, pmem, dmem) -> do
     let (ns, vst) = split_args as
     let vs = map (\e -> if e == "@" then (show tmp); else e) vst
     case (parse ns, parse vs) of
-        (Left _, _) -> ((), (pc+1, tmp, pmem, dmem))
-        (_, Left _) -> ((), (pc+1, tmp, pmem, dmem))
+        (Left _, _) -> (pure (), (pc+1, tmp, pmem, dmem))
+        (_, Left _) -> (pure (), (pc+1, tmp, pmem, dmem))
         (Right ne, Right ve) -> let e = (memr dmem (eval ne) 0) + (eval ve)
                                     dmem' = memw dmem (eval ne) e
-                                 in ((), (pc+1, tmp, pmem, dmem'))
+                                 in (pure (), (pc+1, tmp, pmem, dmem'))
     where
         split_args = (\(as, bst) -> (as, tail bst)) . break (== ".")
 
 nop :: MState
-nop = state $ \(pc, tmp, pmem, gmem) -> ((), (pc+1, tmp, pmem, gmem))
+nop = state $ \(pc, tmp, pmem, gmem) -> (pure (), (pc+1, tmp, pmem, gmem))
+
+myprint :: MState
+myprint = state $ \(pc, tmp, pmem, gmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, gmem))
 
 exec :: [String] -> MState
 exec [] = nop
@@ -138,16 +143,18 @@ exec (c:as) =
         "$use" -> use as
         "$set" -> set as
         "$add" -> add as
+        "$print" -> myprint
         _ -> nop
 
 interpreter :: MState
 interpreter = do
-    (pc, _, pmem, _) <- get
+    (pc, tmp, pmem, gmem) <- get
     case memr0 pmem pc of
-        Left _ -> return ()
+        Left _ -> return $ pure ()
         Right stmt -> do
-            exec $ words stmt
-            interpreter
+            let (io, stat) = runState (exec $ words stmt) (pc, tmp, pmem, gmem)
+            let (io2, stat2) = runState interpreter stat
+            state $ \_ -> (io >>= \_ -> io2, stat2)
 
 {-- Memory --}
 memr0 :: [a] -> Int -> Either () a
@@ -173,8 +180,8 @@ memw m n e =
         Left _ -> m
         Right m' -> m'
 
-out :: Inner -> IO ()
-out i = do
+viewstat :: Inner -> IO ()
+viewstat i = do
     let (pc, tmp, pmem, dmem) = i
     putStrLn $ "Register"
     putStrLn $ "  * Program Counter: " ++ (show pc)
@@ -188,5 +195,8 @@ main = do
     case length args of
         1 -> do
             f <- readFile $ args !! 0
-            out $ execState interpreter (0, 0, lines f, replicate 10 0)
+            let (io, stat) = runState interpreter (0, 0, lines f, replicate 20 0)
+            io
+            putStrLn "-----"
+            viewstat stat
         _ -> putStrLn $ "Usage: ./hasasm filepath"
