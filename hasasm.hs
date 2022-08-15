@@ -180,23 +180,26 @@ memw m n e =
         Left _ -> m
         Right m' -> m'
 
-viewstat :: Inner -> IO ()
-viewstat i = do
-    let (pc, tmp, pmem, dmem) = i
+{-- main --}
+debug :: MState -> Inner -> IO ()
+debug m i = do
+    let (io, (pc, tmp, pmem, dmem)) = runState m i
+    io
+    putStrLn $ "---"
     putStrLn $ "Register"
     putStrLn $ "  * Program Counter: " ++ (show pc)
     putStrLn $ "  * Temporary: " ++ (show tmp)
     putStrLn $ "Memory"
     putStrLn $ "  * Data: " ++ (show dmem)
 
+prod :: MState -> Inner -> IO ()
+prod m i = evalState m i
+
 main :: IO ()
 main = do
     args <- getArgs
     case length args of
-        1 -> do
+        2 -> do
             f <- readFile $ args !! 0
-            let (io, stat) = runState interpreter (0, 0, lines f, replicate 20 0)
-            io
-            putStrLn "-----"
-            viewstat stat
+            prod interpreter (0, 0, lines f, replicate 100 0)
         _ -> putStrLn $ "Usage: ./hasasm filepath"
