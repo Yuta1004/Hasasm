@@ -61,6 +61,9 @@ split es os =
 type Inner = (Int, Int, [String], [Int])    -- PC, TMP, Memory(Program), Memory(Data)
 type MState = State Inner (IO ())
 
+nop :: MState
+nop = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+1, tmp, pmem, dmem))
+
 true :: MState
 true = state $ \(pc, _, pmem, dmem) -> (pure (), (pc+1, 1, pmem, dmem))
 
@@ -99,9 +102,6 @@ add args = state $ \(pc, tmp, pmem, dmem) ->
     let e = (memr dmem (args !! 0) 0) + (args !! 1)
         dmem' = memw dmem (args !! 0) e
     in (pure (), (pc+1, tmp, pmem, dmem'))
-
-nop :: MState
-nop = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+1, tmp, pmem, dmem))
 
 mprintRaw :: MState
 mprintRaw = state $ \(pc, tmp, pmem, dmem) -> (putStr $ show tmp, (pc+1, tmp, pmem, dmem))
