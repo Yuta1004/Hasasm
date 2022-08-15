@@ -13,9 +13,8 @@ $use    0
 $sett   @ - 10
 $jmpz   15
 $use    3
-$printr
-$sett   10
-$printc
+$printr @
+$printc 10
 $use    2
 $set    3 . @
 $set    4 . @

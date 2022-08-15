@@ -2,6 +2,5 @@
 
 $sett   10
 $sett   @ / 2 + @ * @ / 2
-$printr
-$sett   10
-$printc
+$printr @
+$printc 10

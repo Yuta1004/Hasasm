@@ -94,11 +94,11 @@ add args = state $ \(pc, tmp, pmem, dmem) ->
         dmem' = memw dmem (args !! 0) e
     in (pure (), (pc+1, tmp, pmem, dmem'))
 
-mprintRaw :: MState
-mprintRaw = state $ \(pc, tmp, pmem, dmem) -> (putStr $ show tmp, (pc+1, tmp, pmem, dmem))
+mprintRaw :: [Int] -> MState
+mprintRaw args = state $ \(pc, tmp, pmem, dmem) -> (putStr $ show $ args !! 0, (pc+1, tmp, pmem, dmem))
 
-mprintChar :: MState
-mprintChar = state $ \(pc, tmp, pmem, dmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, dmem))
+mprintChar :: [Int] -> MState
+mprintChar args = state $ \(pc, tmp, pmem, dmem) -> (putChar $ chr $ args !! 0, (pc+1, tmp, pmem, dmem))
 
 readArgs :: [String] -> Int -> [Int]
 readArgs [] _ = []
@@ -123,8 +123,8 @@ exec (c:args) = do
         "$set" -> set argsi
         "$sett" -> sett argsi
         "$add" -> add argsi
-        "$printr" -> mprintRaw
-        "$printc" -> mprintChar
+        "$printr" -> mprintRaw argsi
+        "$printc" -> mprintChar argsi
         _ -> nop
 
 interpreter :: MState

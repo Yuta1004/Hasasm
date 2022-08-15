@@ -24,6 +24,6 @@ $sett   @ - 14
 $jmpz   6
 $use    0
 $use    @
-$printc
+$printc @
 $add    0 . 1
 $jmp    -7
