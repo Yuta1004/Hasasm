@@ -101,13 +101,13 @@ add args = state $ \(pc, tmp, pmem, dmem) ->
     in (pure (), (pc+1, tmp, pmem, dmem'))
 
 nop :: MState
-nop = state $ \(pc, tmp, pmem, gmem) -> (pure (), (pc+1, tmp, pmem, gmem))
+nop = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+1, tmp, pmem, dmem))
 
 mprintRaw :: MState
-mprintRaw = state $ \(pc, tmp, pmem, gmem) -> (putStr $ show tmp, (pc+1, tmp, pmem, gmem))
+mprintRaw = state $ \(pc, tmp, pmem, dmem) -> (putStr $ show tmp, (pc+1, tmp, pmem, dmem))
 
 mprintChar :: MState
-mprintChar = state $ \(pc, tmp, pmem, gmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, gmem))
+mprintChar = state $ \(pc, tmp, pmem, dmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, dmem))
 
 readArgs :: [String] -> Int -> [Int]
 readArgs [] _ = []
@@ -140,11 +140,11 @@ exec (c:args) = do
 
 interpreter :: MState
 interpreter = do
-    (pc, tmp, pmem, gmem) <- get
+    (pc, tmp, pmem, dmem) <- get
     case memr0 pmem pc of
         Left _ -> return $ pure ()
         Right stmt -> do
-            let (io, stat) = runState (exec $ words stmt) (pc, tmp, pmem, gmem)
+            let (io, stat) = runState (exec $ words stmt) (pc, tmp, pmem, dmem)
             let (io2, stat2) = runState interpreter stat
             state $ \_ -> (io >>= \_ -> io2, stat2)
 
