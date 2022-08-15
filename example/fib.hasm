@@ -11,7 +11,7 @@ $set    3 . 1
 ## 計算&出力
 $use    0
 $sett   @ - 10
-$jmpf   15
+$jmpz   15
 $use    3
 $printr
 $sett   10

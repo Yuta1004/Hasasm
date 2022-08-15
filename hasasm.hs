@@ -64,25 +64,13 @@ type MState = State Inner (IO ())
 nop :: MState
 nop = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+1, tmp, pmem, dmem))
 
-true :: MState
-true = state $ \(pc, _, pmem, dmem) -> (pure (), (pc+1, 1, pmem, dmem))
-
-false :: MState
-false = state $ \(pc, _, pmem, dmem) -> (pure (), (pc+1, 0, pmem, dmem))
-
 jmp :: [Int] -> MState
 jmp args = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+d, tmp, pmem, dmem))
     where
         d = args !! 0
 
-jmpt :: [Int] -> MState
-jmpt args = state $ \(pc, tmp, pmem, dmem) ->
-    case (tmp, args !! 0) of
-        (0, _) -> (pure (), (pc+1, tmp, pmem, dmem))
-        (_, d) -> (pure (), (pc+d, tmp, pmem, dmem))
-
-jmpf :: [Int] -> MState
-jmpf args = state $ \(pc, tmp, pmem, dmem) ->
+jmpz :: [Int] -> MState
+jmpz args = state $ \(pc, tmp, pmem, dmem) ->
     case (tmp, args !! 0) of
         (0, d) -> (pure (), (pc+d, tmp, pmem, dmem))
         (_, _) -> (pure (), (pc+1, tmp, pmem, dmem))
@@ -129,11 +117,8 @@ exec (c:args) = do
     (_, tmp, _, _) <- get
     let argsi = readArgs args tmp
     case c of
-        "$true" -> true
-        "$false" -> false
         "$jmp" -> jmp argsi
-        "$jmpt" -> jmpt argsi
-        "$jmpf" -> jmpf argsi
+        "$jmpz" -> jmpz argsi
         "$use" -> use argsi
         "$set" -> set argsi
         "$sett" -> sett argsi

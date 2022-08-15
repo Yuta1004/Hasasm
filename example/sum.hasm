@@ -9,7 +9,7 @@ $set    1 . 0
 ## 計算
 $use    0
 $sett   @ - 11
-$jmpf   5
+$jmpz   5
 $use    0
 $add    1 . @
 $add    0 . 1

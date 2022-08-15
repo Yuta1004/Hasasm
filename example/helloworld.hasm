@@ -21,7 +21,7 @@ $set    13 . 10
 ## 出力
 $use    0
 $sett   @ - 14
-$jmpf   6
+$jmpz   6
 $use    0
 $use    @
 $printc
