@@ -17,7 +17,7 @@ $use    1
 $jmpf   7
 $use    0
 $use    @
-$print
+$printc
 $add    0 . 1
 $add    1 . -1
 $jmp    -7

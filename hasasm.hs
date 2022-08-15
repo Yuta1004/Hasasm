@@ -128,8 +128,11 @@ add as = state $ \(pc, tmp, pmem, dmem) -> do
 nop :: MState
 nop = state $ \(pc, tmp, pmem, gmem) -> (pure (), (pc+1, tmp, pmem, gmem))
 
-myprint :: MState
-myprint = state $ \(pc, tmp, pmem, gmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, gmem))
+mprintRaw :: MState
+mprintRaw = state $ \(pc, tmp, pmem, gmem) -> (putStr $ show tmp, (pc+1, tmp, pmem, gmem))
+
+mprintChar :: MState
+mprintChar = state $ \(pc, tmp, pmem, gmem) -> (putChar $ chr tmp, (pc+1, tmp, pmem, gmem)) 
 
 exec :: [String] -> MState
 exec [] = nop
@@ -143,7 +146,8 @@ exec (c:as) =
         "$use" -> use as
         "$set" -> set as
         "$add" -> add as
-        "$print" -> myprint
+        "$printr" -> mprintRaw
+        "$printc" -> mprintChar
         _ -> nop
 
 interpreter :: MState
