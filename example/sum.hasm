@@ -5,10 +5,8 @@ $set    1 . 0
 $use    0
 $jmpf   5
 $use    0
-$add    1 . @ * 10
+$add    1 . @
 $add    0 . -1
 $jmp    -5
-$use    1
-$set    1 . @ / 10
 $use    1
 
