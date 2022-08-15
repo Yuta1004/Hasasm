@@ -195,7 +195,7 @@ main :: IO ()
 main = do
     args <- getArgs
     case length args of
-        2 -> do
+        1 -> do
             f <- readFile $ args !! 0
             prod interpreter (0, 0, lines f, replicate 100 0)
         _ -> putStrLn $ "Usage: ./hasasm filepath"
