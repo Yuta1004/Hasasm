@@ -123,6 +123,9 @@ add as = state $ \(pc, tmp, pmem, dmem) -> do
     where
         split_args = (\(as, bst) -> (as, tail bst)) . break (== ".")
 
+nop :: MState
+nop = state $ \(pc, tmp, pmem, gmem) -> ((), (pc+1, tmp, pmem, gmem))
+
 exec :: [String] -> MState
 exec (c:as) =
     case c of
@@ -134,6 +137,7 @@ exec (c:as) =
         "$use" -> use as
         "$set" -> set as
         "$add" -> add as
+        _ -> nop
 
 interpreter :: MState
 interpreter = do
@@ -174,7 +178,6 @@ out i = do
     putStrLn $ "\tProgram Counter: " ++ (show pc)
     putStrLn $ "\tTemporary: " ++ (show tmp)
     putStrLn $ "--- Memory ---"
-    putStrLn $ "\tProgram: " ++ (show pmem)
     putStrLn $ "\tData: " ++ (show dmem)
 
 main :: IO ()
@@ -185,18 +188,3 @@ main = do
             f <- readFile $ args !! 0
             out $ execState interpreter (0, 0, lines f, replicate 10 0)
         _ -> putStrLn $ "Usage: ./hasasm filepath"
-
-{--
-
-$set 0 . 10     // レジスタ0に値10をセット
-$set 1 . 0      // レジスタ1に値0をセット
-$use 0          // 一時レジスタにレジスタ0の値をセット
-$jmpf 5         // 比較結果がfalse(=一時レジスタの値が0)なら5命令ジャンプ
-$use 0          // 一時レジスタにレジスタ0の値をセット
-$add 1 . @ * 10 // レジスタ1に一時レジスタの値を10倍した結果を加算
-$add 0 . -1     // レジスタ0に-1を加算
-$jmp -5         // -5命令ジャンプ
-$use 1          // 一時レジスタにレジスタ1の値をセット
-$set 1 . @ / 10 // レジスタ1に一時レジスタを10で割った結果をセット
-
---}
