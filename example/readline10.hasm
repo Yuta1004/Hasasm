@@ -1,0 +1,24 @@
+# 標準入力から10文字読み取り，標準出力に出力する
+
+## 入力
+$set    0 . 0
+$use    0
+$readc  @ + 10
+$add    0 . 1
+$use    0
+$sett   @ - 10
+$jmpz   2
+$jmp    -6
+
+## 出力
+$set    0 . 0
+$use    0
+$sett   @ + 10
+$use    @
+$printc @
+$add    0 . 1
+$use    0
+$sett   @ - 10
+$jmpz   2
+$jmp    -8
+$printc 10
