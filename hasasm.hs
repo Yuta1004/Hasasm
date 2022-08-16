@@ -106,6 +106,18 @@ mprintChar args = do
     lift $ putChar $ chr $ args !! 0
     put (pc+1, tmp, pmem, dmem)
 
+mreadRaw :: [Int] -> MState
+mreadRaw args = do
+    (pc, tmp, pmem, dmem) <- get
+    n <- lift $ (readLn :: IO Int)
+    put (pc+1, n, pmem, memw dmem (args !! 0) n)
+
+mreadChar :: [Int] -> MState
+mreadChar args = do
+    (pc, tmp, pmem, dmem) <- get
+    c <- lift $ getChar
+    put (pc+1, tmp, pmem, memw dmem (args !! 0) $ ord c)
+
 readArgs :: [String] -> Int -> [Int]
 readArgs [] _ = []
 readArgs args v =
@@ -131,6 +143,8 @@ exec (c:args) = do
         "$add" -> add argsi
         "$printr" -> mprintRaw argsi
         "$printc" -> mprintChar argsi
+        "$readr" -> mreadRaw argsi
+        "$readc" -> mreadChar argsi
         _ -> nop
 
 interpreter :: MState
