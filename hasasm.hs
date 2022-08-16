@@ -62,37 +62,47 @@ type Inner = (Int, Int, [String], [Int])    -- PC, TMP, Memory(Program), Memory(
 type MState = StateT Inner IO ()
 
 nop :: MState
-nop = state $ \(pc, tmp, pmem, dmem) -> ((), (pc+1, tmp, pmem, dmem))
+nop = do
+    (pc, tmp, pmem, dmem) <- get
+    put (pc+1, tmp, pmem, dmem)
 
 jmp :: [Int] -> MState
-jmp args = state $ \(pc, tmp, pmem, dmem) -> ((), (pc+d, tmp, pmem, dmem))
-    where
-        d = args !! 0
+jmp args = do
+    (pc, tmp, pmem, dmem) <- get
+    let pc' = pc + (args !! 0)
+    put (pc', tmp, pmem, dmem)
 
 jmpz :: [Int] -> MState
-jmpz args = state $ \(pc, tmp, pmem, dmem) ->
-    case (tmp, args !! 0) of
-        (0, d) -> ((), (pc+d, tmp, pmem, dmem))
-        (_, _) -> ((), (pc+1, tmp, pmem, dmem))
+jmpz args = do
+    (pc, tmp, pmem, dmem) <- get
+    put $ case (tmp, args !! 0) of
+        (0, d) -> (pc+d, tmp, pmem, dmem)
+        (_, _) -> (pc+1, tmp, pmem, dmem)
 
 use :: [Int] -> MState
-use args = state $ \(pc, tmp, pmem, dmem) ->
+use args = do
+    (pc, tmp, pmem, dmem) <- get
     let tmp' = memr dmem (args !! 0) 0
-    in ((), (pc+1, tmp', pmem, dmem))
+    put (pc+1, tmp', pmem, dmem)
 
 set :: [Int] -> MState
-set args = state $ \(pc, tmp, pmem, dmem) ->
+set args = do
+    (pc, tmp, pmem, dmem) <- get
     let dmem' = memw dmem (args !! 0) (args !! 1)
-    in ((), (pc+1, tmp, pmem, dmem'))
+    put (pc+1, tmp, pmem, dmem')
 
 sett :: [Int] -> MState
-sett args = state $ \(pc, tmp, pmem, dmem) -> ((), (pc+1, args !! 0, pmem, dmem))
+sett args = do
+    (pc, tmp, pmem, dmem) <- get
+    let tmp' = args !! 0
+    put (pc+1, tmp', pmem, dmem)
 
 add :: [Int] -> MState
-add args = state $ \(pc, tmp, pmem, dmem) ->
+add args = do
+    (pc, tmp, pmem, dmem) <- get
     let e = (memr dmem (args !! 0) 0) + (args !! 1)
-        dmem' = memw dmem (args !! 0) e
-    in ((), (pc+1, tmp, pmem, dmem'))
+    let dmem' = memw dmem (args !! 0) e
+    put (pc+1, tmp, pmem, dmem')
 
 mprintRaw :: [Int] -> MState
 mprintRaw args = do
