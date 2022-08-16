@@ -50,13 +50,13 @@
 
 データメモリのm番地の値に値nを加える
 
-### $printc n
-
-値nをASCII文字として標準出力
-
 ### $printr n
 
 値nを標準出力
+
+### $printc n
+
+値nをASCII文字として標準出力
 
 ### $readr m
 
