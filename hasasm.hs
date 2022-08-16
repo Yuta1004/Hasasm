@@ -59,46 +59,52 @@ split es os =
 
 {-- Interpreter --}
 type Inner = (Int, Int, [String], [Int])    -- PC, TMP, Memory(Program), Memory(Data)
-type MState = State Inner (IO ())
+type MState = StateT Inner IO ()
 
 nop :: MState
-nop = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+1, tmp, pmem, dmem))
+nop = state $ \(pc, tmp, pmem, dmem) -> ((), (pc+1, tmp, pmem, dmem))
 
 jmp :: [Int] -> MState
-jmp args = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+d, tmp, pmem, dmem))
+jmp args = state $ \(pc, tmp, pmem, dmem) -> ((), (pc+d, tmp, pmem, dmem))
     where
         d = args !! 0
 
 jmpz :: [Int] -> MState
 jmpz args = state $ \(pc, tmp, pmem, dmem) ->
     case (tmp, args !! 0) of
-        (0, d) -> (pure (), (pc+d, tmp, pmem, dmem))
-        (_, _) -> (pure (), (pc+1, tmp, pmem, dmem))
+        (0, d) -> ((), (pc+d, tmp, pmem, dmem))
+        (_, _) -> ((), (pc+1, tmp, pmem, dmem))
 
 use :: [Int] -> MState
 use args = state $ \(pc, tmp, pmem, dmem) ->
     let tmp' = memr dmem (args !! 0) 0
-    in (pure (), (pc+1, tmp', pmem, dmem))
+    in ((), (pc+1, tmp', pmem, dmem))
 
 set :: [Int] -> MState
 set args = state $ \(pc, tmp, pmem, dmem) ->
     let dmem' = memw dmem (args !! 0) (args !! 1)
-    in (pure (), (pc+1, tmp, pmem, dmem'))
+    in ((), (pc+1, tmp, pmem, dmem'))
 
 sett :: [Int] -> MState
-sett args = state $ \(pc, tmp, pmem, dmem) -> (pure (), (pc+1, args !! 0, pmem, dmem))
+sett args = state $ \(pc, tmp, pmem, dmem) -> ((), (pc+1, args !! 0, pmem, dmem))
 
 add :: [Int] -> MState
 add args = state $ \(pc, tmp, pmem, dmem) ->
     let e = (memr dmem (args !! 0) 0) + (args !! 1)
         dmem' = memw dmem (args !! 0) e
-    in (pure (), (pc+1, tmp, pmem, dmem'))
+    in ((), (pc+1, tmp, pmem, dmem'))
 
 mprintRaw :: [Int] -> MState
-mprintRaw args = state $ \(pc, tmp, pmem, dmem) -> (putStr $ show $ args !! 0, (pc+1, tmp, pmem, dmem))
+mprintRaw args = do
+    (pc, tmp, pmem, dmem) <- get
+    lift $ putStr $ show $ args !! 0
+    put (pc+1, tmp, pmem, dmem)
 
 mprintChar :: [Int] -> MState
-mprintChar args = state $ \(pc, tmp, pmem, dmem) -> (putChar $ chr $ args !! 0, (pc+1, tmp, pmem, dmem))
+mprintChar args = do
+    (pc, tmp, pmem, dmem) <- get
+    lift $ putChar $ chr $ args !! 0
+    put (pc+1, tmp, pmem, dmem)
 
 readArgs :: [String] -> Int -> [Int]
 readArgs [] _ = []
@@ -129,13 +135,12 @@ exec (c:args) = do
 
 interpreter :: MState
 interpreter = do
-    (pc, tmp, pmem, dmem) <- get
+    stat@(pc, tmp, pmem, dmem) <- get
     case memr0 pmem pc of
-        Left _ -> return $ pure ()
+        Left _ -> return ()
         Right stmt -> do
-            let (io, stat) = runState (exec $ words stmt) (pc, tmp, pmem, dmem)
-            let (io2, stat2) = runState interpreter stat
-            state $ \_ -> (io >>= \_ -> io2, stat2)
+            exec $ words stmt
+            interpreter
 
 {-- Memory --}
 memr0 :: [a] -> Int -> Either () a
@@ -164,8 +169,7 @@ memw m n e =
 {-- main --}
 debug :: MState -> Inner -> IO ()
 debug m i = do
-    let (io, (pc, tmp, pmem, dmem)) = runState m i
-    io
+    (pc, tmp, _, dmem) <- execStateT m i
     putStrLn $ "---"
     putStrLn $ "Register"
     putStrLn $ "  * Program Counter: " ++ (show pc)
@@ -174,7 +178,7 @@ debug m i = do
     putStrLn $ "  * Data: " ++ (show dmem)
 
 prod :: MState -> Inner -> IO ()
-prod m i = evalState m i
+prod m i = evalStateT m i
 
 main :: IO ()
 main = do
